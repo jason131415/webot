@@ -730,7 +730,63 @@ python -m src.knowledge CSV → read_articles → article_key / normalize_conten
 模块常量 `store.SCHEMA` 定义 articles（规范 URL 唯一、正文哈希、来源、元数据、ready/metadata_only 状态及 UTC 导入时间）
 与 knowledge_chunks（article_id 外键级联删除、chunk_index 唯一、正文偏移）。既有群聊表和 schema.py 不变。
 日期不做时区推断；正文为空不生成片段，重复导入保留片段，正文更新才替换片段；整个合法批次失败回滚。
-Windows/macOS spec 收录 knowledge 的 importer/chunker/store 模块，不收录个人数据库。
+Windows/macOS spec 收录 knowledge 的 importer/chunker/store/embedding/retrieval/vector_cli 模块，
+包含 FastEmbed 资源、包元数据及 NumPy/ONNX Runtime 依赖，不收录个人数据库或模型权重。
+
+Phase 3 本地向量检索（§1 参数、§2 函数、§3 依赖与 §4 数据结构补充）：
+
+| 名称 | 类型 | 默认值 | 定义位置 | 消费位置 |
+|---|---|---|---|---|
+| `LocalEmbedding.model_name` | str | `BAAI/bge-small-zh-v1.5` | embedding.py | `_load` |
+| `LocalEmbedding.model_id` | str | 模型 + FastEmbed 0.8 + 切窗/聚合/查询前缀版本 | embedding.py | retrieval.py `current/index` |
+| `LocalEmbedding.dimension` | int | 512 | embedding.py | 向量校验/检索 |
+| `cache_dir` / `threads` | path / int | CLI: `data/models` / 4 | vector_cli.py / embedding.py | FastEmbed |
+| `batch_size` | int | 8 | retrieval.py `index` | 分批事务 |
+| `top_k` / `min_score` | int / float | 5 / -1.0 | retrieval.py `search` | 文章去重/候选过滤 |
+
+未新增必需环境变量。复现脚本在自身进程设置 `HF_HUB_OFFLINE=1` 验证缓存离线可用。
+
+| 函数签名 | 返回 / 职责 |
+|---|---|
+| `embedding.split_for_model(text, tokenizer, limit=480)` | list[str]；无截断 tokenizer 计数，递归二分，完整保留输入 |
+| `LocalEmbedding.__init__(self, cache_dir, threads=4)` | 保存配置，延迟加载 |
+| `LocalEmbedding._load(self)` | 首次加载 FastEmbed CPU 模型和独立计数 tokenizer |
+| `LocalEmbedding.embed(self, texts)` | 向量生成器；切窗后按 token 数加权均值、L2 归一化 |
+| `LocalEmbedding.query(self, text)` | 单个向量；添加中文检索指令 |
+| `retrieval.normalized(vector, dimension=None)` | float 列表；检查维度、非有限数、零范数 |
+| `retrieval.source_text(row)` / `source_hash(row)` | 标题 + 换行 + 正文 / SHA256 |
+| `retrieval.chunks(store)` | 带标题、URL、日期、来源的 SQLite 行列表 |
+| `retrieval.current(row, provider)` | 是否具有匹配模型/维度/输入摘要的向量 |
+| `retrieval.index(store, provider, batch_size=8)` | chunks/indexed/unchanged/model/dimension 统计；每批完整校验再提交 |
+| `retrieval.search(store, provider, query, top_k=5, min_score=-1.0)` | 最佳片段列表；余弦排序、文章去重、来源保留 |
+| `vector_cli.main()` | CLI index/search/status、耗时和 JSON 报告；退出码 0 |
+| `tools/knowledge_benchmark.py: main()` | 离线真实库检索、切窗完整性、耗时/内存报告 |
+
+```text
+vector_cli.main → KnowledgeStore（幂等迁移）
+               ├→ index → chunks/current → LocalEmbedding.embed
+               │                         → _load → split_for_model → FastEmbed CPU
+               │        → normalized → 每批写入 knowledge_chunks
+               ├→ search → chunks/current → LocalEmbedding.query → embed
+               │         → cosine → 按文章去重 → title/url/content/score/source
+               └→ status → chunks/current（不加载模型）
+```
+
+`KnowledgeStore.__init__` 通过 PRAGMA table_info 检测列，逐个执行以下加法迁移并提交；
+原文章和片段 ID、正文、偏移不变，不触碰群聊数据库：
+
+```sql
+ALTER TABLE knowledge_chunks ADD COLUMN embedding_json TEXT;
+ALTER TABLE knowledge_chunks ADD COLUMN embedding_model TEXT;
+ALTER TABLE knowledge_chunks ADD COLUMN embedding_dimension INTEGER;
+ALTER TABLE knowledge_chunks ADD COLUMN embedding_hash TEXT;
+ALTER TABLE knowledge_chunks ADD COLUMN embedded_at TEXT;
+```
+
+新列允许 NULL，原库迁移后等待索引。标题变动按摘要判定过期；正文变动沿用删除旧片段/重建的事务，
+向量随旧行删除。批次失败不写入该批，之前成功的批次保留；检索不混用旧模型或过期向量。
+空问题/无有效向量不调用模型，存储向量损坏显式报错。时间为 UTC。
+检索得分未校准为置信度，Phase 3 未接入 chat；低相关回退与引用注入由 Phase 4 实现。
 
 Jason Persona 增量调用关系（Phase 1）：
 
@@ -1714,7 +1770,8 @@ WCDB_KEY=
 #   - ui/dist → ui/dist (前端构建产物)
 #   - .env.example → . (示例配置)
 #   - src/persona/jason.md → src/persona (内置人设；build-macos.spec 同样包含)
-# 排除: faster_whisper, ctranslate2, numpy, onnxruntime, pysilk, tkinter, matplotlib, scipy
+# 包含: numpy, onnxruntime, fastembed（Phase 3 本地向量运行依赖）
+# 排除: faster_whisper, ctranslate2, pysilk, tkinter, matplotlib, scipy
 ```
 
 ### 5.3 `requirements.txt` 依赖说明

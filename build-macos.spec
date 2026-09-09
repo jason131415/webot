@@ -7,6 +7,7 @@ Output: dist/webot.app
 """
 import os
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 
 MACOS_CODESIGN_IDENTITY = os.getenv("MACOS_CODESIGN_IDENTITY") or None
 MACOS_ENTITLEMENTS_FILE = "macos-entitlements.plist"
@@ -22,7 +23,7 @@ a = Analysis(
     ["desktop_mac.py"],
     pathex=[],
     binaries=WEFLOW_WCDB_BINARIES,
-    datas=[
+    datas=collect_data_files('fastembed') + copy_metadata('fastembed', recursive=True) + [
         ("ui/dist", "ui/dist"),
         (".env.example", "."),
         ("src/persona/jason.md", "src/persona"),
@@ -30,6 +31,7 @@ a = Analysis(
     hiddenimports=[
         "src",
         "src.knowledge", "src.knowledge.importer", "src.knowledge.chunker", "src.knowledge.store",
+        "src.knowledge.embedding", "src.knowledge.retrieval", "src.knowledge.vector_cli",
         "src.admin",
         "src.bot",
         "src.config",
@@ -91,7 +93,6 @@ a = Analysis(
     excludes=[
         "tkinter",
         "matplotlib",
-        "numpy",
         "scipy",
         "jedi",
         "IPython",

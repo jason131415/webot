@@ -1,0 +1,2 @@
+# Phase 3 local Chinese embeddings; separate from voice model dependencies.
+fastembed==0.8.0

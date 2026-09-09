@@ -8,6 +8,7 @@ Output: dist/webot.exe
 import sys
 import site
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 
 PROJECT_ROOT = Path(SPECPATH)
 
@@ -50,7 +51,7 @@ a = Analysis(
         (str(PROJECT_ROOT / 'native' / 'windows' / 'VCRUNTIME140_1.dll'), 'native/windows'),
         (str(PROJECT_ROOT / 'native' / 'windows' / 'wx_key.dll'), 'native/windows'),
     ],
-    datas=[
+    datas=collect_data_files('fastembed') + copy_metadata('fastembed', recursive=True) + [
         ('ui/dist', 'ui/dist'),
         ('.env.example', '.'),
         ('src/persona/jason.md', 'src/persona'),
@@ -59,6 +60,7 @@ a = Analysis(
     hiddenimports=[
         'src', 'src.bot', 'src.config', 'src.main',
         'src.knowledge', 'src.knowledge.importer', 'src.knowledge.chunker', 'src.knowledge.store',
+        'src.knowledge.embedding', 'src.knowledge.retrieval', 'src.knowledge.vector_cli',
         'src.db', 'src.db.schema', 'src.db.store',
         'src.trigger', 'src.trigger.detector',
         'src.summarize', 'src.summarize.base', 'src.summarize.claude_backend',
@@ -90,7 +92,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=['tkinter', 'matplotlib', 'scipy', 'jedi', 'IPython',
-              'faster_whisper', 'ctranslate2', 'numpy', 'onnxruntime',
+              'faster_whisper', 'ctranslate2',
               'pysilk', 'av', 'sounddevice', 'soundfile',
               # Exclude packages that are NOT webot dependencies but may
               # be installed in the local Python environment.  Bundling

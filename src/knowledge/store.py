@@ -38,6 +38,13 @@ class KnowledgeStore:
         self.conn = sqlite3.connect(path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(knowledge_chunks)")}
+        for name, kind in (("embedding_json", "TEXT"), ("embedding_model", "TEXT"),
+                           ("embedding_dimension", "INTEGER"), ("embedding_hash", "TEXT"),
+                           ("embedded_at", "TEXT")):
+            if name not in columns:
+                self.conn.execute(f"ALTER TABLE knowledge_chunks ADD COLUMN {name} {kind}")
+        self.conn.commit()
 
     def close(self) -> None:
         self.conn.close()

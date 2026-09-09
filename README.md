@@ -182,7 +182,34 @@ python -m src.knowledge "C:\path\articles_full.csv" --report "import-report.json
 正文变化时在事务内替换旧片段；后续不完整导出中的空正文不会抹掉已保存的完整正文。
 空正文仅保存元数据，不拿摘要或标题伪装正文。片段默认最多 800 字符、重叠 100 字符，保留原文偏移。
 日期按导出原字符串保存，不猜测缺失日期和时区。文章内容只作为数据，不执行其中的指令。
-此阶段没有向量调用、搜索或自动联网抓取。知识库数据库和导入报告不应提交至公开仓库，也不打包进 EXE。
+导入操作本身不调用向量模型、不自动联网抓取。知识库数据库和导入报告不应提交至公开仓库，也不打包进 EXE。
+
+### 本地向量检索（Phase 3）
+
+在项目根目录、已启用的 Python 虚拟环境中运行：
+
+```powershell
+python -m pip install -r requirements-knowledge.txt
+python -m src.knowledge.vector_cli index
+python -m src.knowledge.vector_cli status
+python -m src.knowledge.vector_cli search "如何让 AI 自动完成任务？" --top-k 3
+```
+
+使用 BGE-small-zh-v1.5 中文模型（512 维），只用 CPU，首次使用下载约 91 MB 模型到
+`data/models`；缓存后支持离线检索，无需 Embedding API Key。文章和问题在本机计算，
+不发送到模型下载站点。`--db` 可指定数据库，`--cache` 指定模型缓存，`--report` 保存 JSON 结果。
+
+向量以 JSON 保存在现有 `knowledge_chunks` 表，记录模型标识、维度、输入摘要和生成时间。
+重复索引跳过已完成内容；修改标题/正文会使对应向量过期，失败后重新运行 `index` 即可续跑。
+超过模型长度的输入按真实 token 数完整切窗并聚合，不截掉正文后半段。
+检索按余弦相似度排序，同一文章仅保留最匹配片段，同时返回真实标题、URL、日期和来源。
+
+`--min-score` 可过滤候选，但分数不是正确率；默认返回候选，不保证问题一定有答案。
+当前仅提供命令行检索，**尚未将检索结果接入聊天或 DeepSeek 回答**，该部分属于 Phase 4。
+17 篇无正文文章保留元数据，不参与向量检索。模型、数据库、备份与真实检索报告均留在本地。
+
+开发打包前也需安装 `requirements-knowledge.txt`。EXE 包含向量运行依赖和代码，
+不内置模型权重或个人文章库；本阶段命令行通过 Python 运行。
 
 原有常用设置可以在控制台里直接修改。保存后重启机器人即可生效。
 
