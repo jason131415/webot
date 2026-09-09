@@ -58,6 +58,7 @@ a = Analysis(
     ],
     hiddenimports=[
         'src', 'src.bot', 'src.config', 'src.main',
+        'src.knowledge', 'src.knowledge.importer', 'src.knowledge.chunker', 'src.knowledge.store',
         'src.db', 'src.db.schema', 'src.db.store',
         'src.trigger', 'src.trigger.detector',
         'src.summarize', 'src.summarize.base', 'src.summarize.claude_backend',

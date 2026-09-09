@@ -110,3 +110,16 @@ Phase 1：验证空配置兼容、人设加载/非法输入/资源故障、三�
 - diff 检查通过；五个受保护目录、两个桌面入口与原始基线完全一致。未修改数据库，不启用主动发言，也未发送微信消息。
 - 启用：在实际 `.env` 写 `PERSONA_NAME=jason` 后重启 bot；禁用：留空并重启。BOT_DISPLAY_NAME 保持实际微信昵称。尚未配置真实模型凭据，未宣称已完成公众号知识库或 RAG。
 - 本次止于 Phase 1；Phase 2–8 未执行。阶段提交同步到用户指定的开发分支，不合并 main。
+
+### Phase 2（用户提供 articles_full.csv 后继续）
+
+- 已新增本地 CSV 导入 CLI、URL 去重、正文规范化/切块和独立 SQLite 存储；不用共享群聊库，避免迁移或覆盖现有聊天数据。
+- 来源 CSV：140 条、123 条正文非空、17 条正文为空（其中 2 条标题也空）；139 条 source=own、1 条 source=public，公众号 biz 一致。原样保留来源/作者字段，不凭 source 标记猜测作者身份。
+- 真实导入成功：140 条记录、123 ready、17 metadata_only、422 chunks；原始正文最长 6,777 字符，非空正文无低于 150 字符的记录。未验证文章中的新闻/观点是否仍然准确。
+- 第二次导入：0 inserted / 0 updated / 140 unchanged。空正文不使用摘要代替；后续空正文不覆盖已存完整正文。
+- 原文、数据库及含标题/链接的导入报告只保存在本地；Git 仅提交代码、合成测试和汇总数。实际导入报告位于仓库外 outputs/article-import-report.json。
+- 数据库默认 data/jason_knowledge.db；回滚代码前先保留该库，既有群聊数据库不受影响。导入现有知识库前可关闭使用该库的进程后备份；事务保护本次合法记录批次。
+- Phase 3/4 未执行：当前未生成 embedding、未做检索、未向外部模型上传文章、未改变 chat 的知识边界。
+- 验证：新增 15 项测试全通过；完整回归 435 项，424 passed / 11 failed / 0 skipped，失败集合与 Phase 1 完全一致。真实 CSV 逐篇正文一致、片段偏移覆盖完整、SQLite integrity_check 与 foreign_key_check 均通过。
+- Windows EXE 已重新构建并核对 knowledge 模块收录、前端/Persona 资源与源码一致、未包含个人 CSV 或数据库；macOS 仅同步打包清单。五个受保护目录及桌面入口 diff 为空。
+- 使用说明已写入 README 和代码参考手册；本地 outputs/文章导入结果.md 列出待补正文。此阶段不启动真实微信、不执行文章中的指令、不验证文章新闻事实。

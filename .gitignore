@@ -6,6 +6,8 @@
 data/messages.db
 data/messages.db-shm
 data/messages.db-wal
+data/jason_knowledge.db*
+data/knowledge-import*.json
 data/bot.log
 data/send_failures.log
 data/nicknames.json

@@ -29,6 +29,7 @@ a = Analysis(
     ],
     hiddenimports=[
         "src",
+        "src.knowledge", "src.knowledge.importer", "src.knowledge.chunker", "src.knowledge.store",
         "src.admin",
         "src.bot",
         "src.config",

@@ -711,6 +711,27 @@ desktop.py  (桌面入口)
 
 ### 3.2 调用关系图
 
+Phase 2 本地文章导入：
+
+```text
+python -m src.knowledge CSV → read_articles → article_key / normalize_content
+                          → KnowledgeStore.import_articles → chunk_text
+                          → articles / knowledge_chunks（独立 data/jason_knowledge.db）
+                          → JSON 导入报告
+```
+
+`src/knowledge/__main__.py: main() -> int` 提供 --db、--report、--dry-run；错误行使退出码为 1。
+`importer.py: read_articles(path: str | Path) -> tuple[list[dict], list[dict], str]` 返回记录、错误和源文件 SHA256；
+`article_key(url: str) -> str` 规范化微信文章身份 URL，原文链接另行保留。
+`chunker.py: normalize_content(content: str) -> str` 统一换行；
+`chunk_text(content: str, size: int = 800, overlap: int = 100) -> list[tuple[int, int, str]]` 返回起止偏移和正文。
+`store.py: KnowledgeStore.__init__(path: str | Path)` 初始化独立库；
+`import_articles(articles: list[dict]) -> dict` 事务写入及统计；`stats() -> dict` 查询数量；`close() -> None` 关闭连接。
+模块常量 `store.SCHEMA` 定义 articles（规范 URL 唯一、正文哈希、来源、元数据、ready/metadata_only 状态及 UTC 导入时间）
+与 knowledge_chunks（article_id 外键级联删除、chunk_index 唯一、正文偏移）。既有群聊表和 schema.py 不变。
+日期不做时区推断；正文为空不生成片段，重复导入保留片段，正文更新才替换片段；整个合法批次失败回滚。
+Windows/macOS spec 收录 knowledge 的 importer/chunker/store 模块，不收录个人数据库。
+
 Jason Persona 增量调用关系（Phase 1）：
 
 ```text
