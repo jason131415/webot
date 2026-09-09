@@ -169,6 +169,8 @@ class BotConfig:
 
     # === Bot Identity ===
     bot_display_name: str = "群聊小助手"
+    # Empty keeps legacy chat behavior; "jason" enables Jason AI for chat only.
+    persona_name: str = ""
     # Admin wxid (can manage nicknames and bot settings)
     admin_wxid: str = ""
 
@@ -479,6 +481,7 @@ def load_config() -> BotConfig:
         "wechat_groups": _decode_wechat_groups(os.getenv("WECHAT_GROUPS", "*")),
         "wechat_data_dir": os.getenv("WECHAT_DATA_DIR", "").strip(),
         "bot_display_name": _sanitize_display_name(os.getenv("BOT_DISPLAY_NAME", "群聊小助手")),
+        "persona_name": os.getenv("PERSONA_NAME", "").strip().lower(),
         "admin_wxid": os.getenv("ADMIN_WXID", "").strip(),
         "db_path": os.getenv("DB_PATH", "data/messages.db").strip(),
         "poll_interval_sec": _safe_float(os.getenv("POLL_INTERVAL_SEC", "1.0"), 1.0, "POLL_INTERVAL_SEC"),

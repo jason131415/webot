@@ -25,6 +25,7 @@ a = Analysis(
     datas=[
         ("ui/dist", "ui/dist"),
         (".env.example", "."),
+        ("src/persona/jason.md", "src/persona"),
     ],
     hiddenimports=[
         "src",

@@ -17,7 +17,8 @@ function TypewriterText({ text, speed = 15 }) {
     setDisplayedText('')
     let i = 0
     const interval = setInterval(() => {
-      setDisplayedText((prev) => prev + text.charAt(i))
+      // Capture the prefix now; React may apply state updates after i changes.
+      setDisplayedText(text.slice(0, i + 1))
       i++
       if (i >= text.length) {
         clearInterval(interval)

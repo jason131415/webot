@@ -53,6 +53,7 @@ a = Analysis(
     datas=[
         ('ui/dist', 'ui/dist'),
         ('.env.example', '.'),
+        ('src/persona/jason.md', 'src/persona'),
         # data/ is runtime-generated — do NOT bundle into read-only _MEIPASS
     ],
     hiddenimports=[

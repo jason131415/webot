@@ -1,0 +1,20 @@
+{
+  "total": 420,
+  "passed": 409,
+  "failed": [
+    "tests.test_config.ValidateConfigTests::test_max_retries_above_maximum_raises",
+    "tests.test_config.ValidateConfigTests::test_max_retries_below_minimum_raises",
+    "tests.test_functional.TestSidebarNavigation::test_sidebar_has_tabs",
+    "tests.test_macos_adaptation.MacOSAdaptationTests::test_find_env_file_honors_explicit_env_file_override",
+    "tests.test_macos_adaptation.MacOSAdaptationTests::test_readme_documents_macos_experimental_start",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_build_lldb_env_prepends_lldb_python_path",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_build_lldb_extract_command_uses_sudo_env_and_never_embeds_key_material",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_chatlog_build_command_targets_cmd_chatlog",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_count_open_db_files_counts_db_storage_handles",
+    "tests.test_web_api.ApiConfigEndpointTests::test_load_config_reads_feishu_export_values",
+    "tests.test_web_api.TestConfig::test_validate_config_max_retries_out_of_range"
+  ],
+  "new_persona_tests_passed": 26,
+  "new_failures": [],
+  "skipped": 0
+}

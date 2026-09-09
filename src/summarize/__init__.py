@@ -9,6 +9,7 @@ Usage:
 
 import logging
 
+from ..persona import PersonaManager
 from .base import AbstractSummarizer
 from .claude_backend import ClaudeSummarizer
 from .deepseek_backend import DeepSeekSummarizer
@@ -41,10 +42,11 @@ def create_summarizer(config) -> AbstractSummarizer:
         ValueError: If the configured backend is unknown.
     """
     backend = config.ai_backend.lower()
+    persona_prompt = PersonaManager.load(getattr(config, "persona_name", ""))
 
     if backend == "deepseek":
         logger.info("Creating DeepSeekSummarizer (model=%s)", config.deepseek_model)
-        return DeepSeekSummarizer(
+        summarizer = DeepSeekSummarizer(
             api_key=config.deepseek_api_key,
             model=config.deepseek_model,
             base_url=config.deepseek_base_url,
@@ -53,7 +55,7 @@ def create_summarizer(config) -> AbstractSummarizer:
 
     elif backend == "claude":
         logger.info("Creating ClaudeSummarizer (model=%s)", config.summarize_model)
-        return ClaudeSummarizer(
+        summarizer = ClaudeSummarizer(
             api_key=config.anthropic_api_key,
             model=config.summarize_model,
             base_url=config.anthropic_base_url,
@@ -62,7 +64,7 @@ def create_summarizer(config) -> AbstractSummarizer:
 
     elif backend == "openai":
         logger.info("Creating OpenAISummarizer (model=%s)", config.openai_model)
-        return OpenAISummarizer(
+        summarizer = OpenAISummarizer(
             api_key=config.openai_api_key,
             model=config.openai_model,
             base_url=config.openai_base_url,
@@ -74,3 +76,6 @@ def create_summarizer(config) -> AbstractSummarizer:
             f"Unknown AI_BACKEND: '{config.ai_backend}'. "
             f"Supported: 'claude', 'deepseek', 'openai'."
         )
+
+    summarizer.persona_prompt = persona_prompt
+    return summarizer

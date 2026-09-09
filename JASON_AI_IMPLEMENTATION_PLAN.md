@@ -42,7 +42,8 @@ Web 沙箱调用 `create_summarizer(config).chat(...)`；复用此入口即可�
 本次以下目录零改动：`src/wechat/`、`src/proactive/`、`src/todo/`、`src/voice/`、`src/integrations/`。
 桌面入口 `desktop.py`、`desktop_mac.py` 不改。
 Phase 1 新增 `src/persona/manager.py`、`src/persona/jason.md` 和测试；修改配置、summarizer 工厂、共享聊天层、两平台打包资源清单和文档。
-无需改 router、数据库、模型 SDK 调用协议或前端功能。
+无需改 router、数据库或模型 SDK 调用协议。浏览器验收发现原有沙箱打字动画丢字：
+ConfigPanel.jsx 的状态更新闭包读取递增后的 i；Phase 1 一并改为提交已计算的字符串前缀，不增加前端功能。
 
 ## Phase 1 设计与架构判断
 
@@ -95,3 +96,17 @@ Phase 1：验证空配置兼容、人设加载/非法输入/资源故障、三�
 - 此阶段应用源码未修改，受保护目录 diff 为空；未将上述失败修成无意义通过。Phase 1 要求新测试全通过、无新增失败。
 - 原生 DLL 不在 Git 中，已定位上游 v1.0.0 官方资产及仓库自带提取流程，继续恢复以完成 Phase 1 打包。
 - 真实微信收发和真实 API 未验证；Phase 0 是基线检查完成，不是原项目所有功能验收通过。
+
+### Phase 1（2026-09-09）
+
+- 已实现 PersonaManager、Jason 人设文件、PERSONA_NAME 配置及统一工厂注入；原 chat 签名不变，默认禁用以保持兼容。
+- 新增 26 项测试全部通过，覆盖三个后端实际 SDK 请求参数、群消息/记忆隔离、配置、非法人设、资源缺失、独立实例、原路由、主动发言/记忆/总结隔离和真实浏览器沙箱链路。
+- 浏览器测试实际点击“系统配置 → 提示词沙箱 → 发送沙箱测试”，使用真实本地 HTTP 与后端工厂，仅 SDK 客户端使用离线替身。测试转发原 UI 写死的 7327 端口请求到隔离测试端口，不连接实际微信或付费模型。
+- 此测试揭示原有 TypewriterText 延迟闭包丢字，已局部修复为即时字符串前缀；完整回复显示断言现已通过。没有放宽或跳过失败断言。
+- 完整回归：420 项，409 passed / 11 failed / 0 skipped。与 Phase 0 的失败名称集合完全一致，0 新增失败；见 `JASON_AI_PHASE1_RESULTS.json`。
+- 前端重建通过；PyInstaller Windows EXE 构建通过。六个 DLL 来自上游官方 v1.0.0 webot.exe，沿用仓库 CI 的提取方法；没有运行该下载文件。
+- `dist/webot.exe` 为 42,532,489 字节，SHA256：`1db52770c68f113edca30dab7e936b2d17bbef04f338d866051df74524901143`。
+- 已从 EXE 归档核对 `src/persona/jason.md`、最新前端 JS/index.html 与源码字节一致，确认 persona/manager 与 summarize.base 模块被收录。未实际启动该 EXE 或完成真实微信/API 端到端验收；macOS 仅更新资源清单，未在本机打包验证。
+- diff 检查通过；五个受保护目录、两个桌面入口与原始基线完全一致。未修改数据库，不启用主动发言，也未发送微信消息。
+- 启用：在实际 `.env` 写 `PERSONA_NAME=jason` 后重启 bot；禁用：留空并重启。BOT_DISPLAY_NAME 保持实际微信昵称。尚未配置真实模型凭据，未宣称已完成公众号知识库或 RAG。
+- 本次止于 Phase 1；Phase 2–8 未执行。阶段提交同步到用户指定的开发分支，不合并 main。

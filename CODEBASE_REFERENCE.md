@@ -2,7 +2,7 @@
 
 > 微信消息总结机器人 — 完整代码架构与 API 参考文档
 > 生成日期: 2026-06-11
-> 最后更新: 2026-06-11
+> 最后更新: 2026-09-09（Jason Persona 相关条目）
 
 ---
 
@@ -86,6 +86,7 @@ grep "文件名" CODEBASE_REFERENCE.md
 | 环境变量名 | 类型 | 默认值 | 定义位置 | 消费位置 |
 |---|---|---|---|---|
 | `AI_BACKEND` | `str` | `"claude"` | `src/config.py:load_config()` | `src/summarize/__init__.py:create_summarizer()` |
+| `PERSONA_NAME` | `str` | `""`（禁用）；`jason` 启用 | `src/config.py:BotConfig.persona_name` / `load_config()` | `create_summarizer()` → `PersonaManager.load()` |
 | `ANTHROPIC_API_KEY` | `str` | `""` | `src/config.py` | `src/summarize/claude_backend.py:ClaudeSummarizer.__init__()` |
 | `ANTHROPIC_BASE_URL` | `str` | `"https://api.anthropic.com"` | `src/config.py` | `src/summarize/claude_backend.py` |
 | `SUMMARIZE_MODEL` | `str` | `"claude-haiku-4-5-20251001"` | `src/config.py` | `src/bot.py:_log_banner()`, `src/summarize/claude_backend.py` |
@@ -276,6 +277,18 @@ todo_delete_keywords: list[str] = [
 | `_split_into_chunks(messages)` | — | 将消息列表分块 | `messages: list[dict]` | `list[list[dict]]` |
 | `_estimate_tokens(messages)` | — | 估算 token 数(静态) | `messages: list[dict]` | `int` |
 | `_retry_with_backoff(call_fn, label)` | — | 带指数退避的重试执行 | `call_fn: Callable, label: str` | `T` |
+
+### 2.4a `src/persona/` 与聊天人设入口
+
+| 函数或属性 | 说明 | 调用方 / 下游 |
+|---|---|---|
+| `PersonaManager.load(name: str = "") -> str` | 空名称返回空字符串；仅支持 jason；包内 UTF-8 资源缺失、不可读或空白时抛 RuntimeError，非法名称抛 ValueError | `create_summarizer()` → `Path(__file__).resolve().with_name("jason.md").read_text()` |
+| `create_summarizer(config) -> AbstractSummarizer` | 读取 persona_name，创建原有后端，再设置实例 persona_prompt；无 persona_name 的兼容配置默认禁用 | Bot.run、Web 沙箱 → PersonaManager.load、三个后端构造函数 |
+| `AbstractSummarizer.persona_prompt: str = ""` | 工厂设置的实例属性，仅普通 chat 使用 | `create_summarizer()` → `chat()` |
+| `_chat_with_persona(self, message: str, context_messages: list[dict] \| None, requester_name: str, bot_name: str, group_name: str, group_memory: str) -> str` | system 中放包内身份规则，user 中放 JSON 对话数据；最近最多 20 条，不对输入二次 format | `chat()` → `_retry_with_backoff()` → `_call_chat_api()` |
+
+`chat(self, message: str, context_messages: list[dict] | None = None, requester_name: str = "", bot_name: str = "群聊小助手", group_name: str = "群聊", group_memory: str = "") -> str`
+签名保持不变：persona_prompt 为空走原模板，否则调用 `_chat_with_persona`。src/persona/__init__.py 导出 PersonaManager，jason.md 为唯一内置人设；无新增模块常量或第三方运行依赖。
 
 ### 2.5 `src/summarize/claude_backend.py` (ClaudeSummarizer)
 
@@ -629,6 +642,10 @@ todo_delete_keywords: list[str] = [
 
 ### 2.34 前端组件 (`ui/src/components/`)
 
+`ConfigPanel.jsx: TypewriterText({ text, speed = 15 })`：沙箱逐字显示回复。
+计时回调提交 `text.slice(0, i + 1)` 的即时值，避免 React 延迟执行函数式更新时读取已改变的下标导致丢字。
+由 `SandboxSection` 使用；输入/按钮/接口保持不变。
+
 | 文件 | 组件名 | 描述 |
 |---|---|---|
 | `Onboarding.jsx` | `Onboarding` | 4步引导流程主容器(侧边栏+步骤内容) |
@@ -693,6 +710,20 @@ desktop.py  (桌面入口)
 ```
 
 ### 3.2 调用关系图
+
+Jason Persona 增量调用关系（Phase 1）：
+
+```text
+load_config → BotConfig.persona_name
+Bot.run / Web sandbox → create_summarizer → PersonaManager.load → src/persona/jason.md
+                                       └→ backend.persona_prompt
+MessageRouter._handle_chat / Web sandbox → backend.chat
+  ├─ persona_prompt 为空 → 原 CHAT_SYSTEM_PROMPT
+  └─ 已启用 → _chat_with_persona → system: 人设 / user: JSON 对话
+                              └→ _retry_with_backoff → _call_chat_api
+```
+
+proactive_chat、summarize、consolidate_memory 不读取 persona_prompt。
 
 #### src/bot.py → 调用链
 
@@ -932,6 +963,10 @@ WcdbBackend.start(callback)
 ---
 
 ### 功能B: AI总结/聊天
+
+Phase 1 增量：可通过 PERSONA_NAME=jason 启用 Jason AI，详见 §2.4a、§3.2。
+身份配置不修改 BOT_DISPLAY_NAME；未启用时完全保留原 chat 模板。
+上下文/群记忆属于用户数据，不能充当 Jason Knowledge；本阶段没有文章检索和数据库变更。
 
 #### 涉及文件
 
@@ -1540,6 +1575,9 @@ MacHybridBackend
 
 ### 5.1 `.env` 文件完整配置项
 
+Jason AI 新增可选项：`PERSONA_NAME=`（默认禁用）或 `PERSONA_NAME=jason`。
+由 src/config.py 加载并由 summarizer 工厂消费；更改后重启 bot，网页无新增编辑控件。
+
 ```ini
 # === AI 后端 ===
 AI_BACKEND=deepseek                           # "deepseek" | "claude" | "openai"
@@ -1654,6 +1692,7 @@ WCDB_KEY=
 # 数据:
 #   - ui/dist → ui/dist (前端构建产物)
 #   - .env.example → . (示例配置)
+#   - src/persona/jason.md → src/persona (内置人设；build-macos.spec 同样包含)
 # 排除: faster_whisper, ctranslate2, numpy, onnxruntime, pysilk, tkinter, matplotlib, scipy
 ```
 
