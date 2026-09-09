@@ -32,6 +32,7 @@ a = Analysis(
         "src",
         "src.knowledge", "src.knowledge.importer", "src.knowledge.chunker", "src.knowledge.store",
         "src.knowledge.embedding", "src.knowledge.retrieval", "src.knowledge.vector_cli",
+        "src.knowledge.context", "src.knowledge.answer",
         "src.admin",
         "src.bot",
         "src.config",

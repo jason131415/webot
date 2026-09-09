@@ -87,6 +87,9 @@ grep "文件名" CODEBASE_REFERENCE.md
 |---|---|---|---|---|
 | `AI_BACKEND` | `str` | `"claude"` | `src/config.py:load_config()` | `src/summarize/__init__.py:create_summarizer()` |
 | `PERSONA_NAME` | `str` | `""`（禁用）；`jason` 启用 | `src/config.py:BotConfig.persona_name` / `load_config()` | `create_summarizer()` → `PersonaManager.load()` |
+| `KNOWLEDGE_ENABLED` | `bool` | `false` | `src/config.py:BotConfig.knowledge_enabled` / `load_config()` | `create_summarizer()`、router、Web 沙箱 |
+| `KNOWLEDGE_MIN_SCORE` | `float` | `0.5`，范围 0–1 | `src/config.py` | `KnowledgeRetriever` → `search` |
+| `KNOWLEDGE_TOP_K` | `int` | `3`，范围 1–5 | `src/config.py` | `KnowledgeRetriever` → `search` |
 | `ANTHROPIC_API_KEY` | `str` | `""` | `src/config.py` | `src/summarize/claude_backend.py:ClaudeSummarizer.__init__()` |
 | `ANTHROPIC_BASE_URL` | `str` | `"https://api.anthropic.com"` | `src/config.py` | `src/summarize/claude_backend.py` |
 | `SUMMARIZE_MODEL` | `str` | `"claude-haiku-4-5-20251001"` | `src/config.py` | `src/bot.py:_log_banner()`, `src/summarize/claude_backend.py` |
@@ -283,12 +286,15 @@ todo_delete_keywords: list[str] = [
 | 函数或属性 | 说明 | 调用方 / 下游 |
 |---|---|---|
 | `PersonaManager.load(name: str = "") -> str` | 空名称返回空字符串；仅支持 jason；包内 UTF-8 资源缺失、不可读或空白时抛 RuntimeError，非法名称抛 ValueError | `create_summarizer()` → `Path(__file__).resolve().with_name("jason.md").read_text()` |
-| `create_summarizer(config) -> AbstractSummarizer` | 读取 persona_name，创建原有后端，再设置实例 persona_prompt；无 persona_name 的兼容配置默认禁用 | Bot.run、Web 沙箱 → PersonaManager.load、三个后端构造函数 |
+| `create_summarizer(config) -> AbstractSummarizer` | 读取 persona_name，按 knowledge_enabled 获取缓存检索器，再创建原有后端并设置实例 persona_prompt/knowledge_retriever；默认禁用；启用知识库要求 Jason Persona | Bot.run、Web 沙箱 → PersonaManager.load、get_retriever、三个后端构造函数 |
 | `AbstractSummarizer.persona_prompt: str = ""` | 工厂设置的实例属性，仅普通 chat 使用 | `create_summarizer()` → `chat()` |
-| `_chat_with_persona(self, message: str, context_messages: list[dict] \| None, requester_name: str, bot_name: str, group_name: str, group_memory: str) -> str` | system 中放包内身份规则，user 中放 JSON 对话数据；最近最多 20 条，不对输入二次 format | `chat()` → `_retry_with_backoff()` → `_call_chat_api()` |
+| `_chat_with_persona(self, message: str, context_messages: list[dict] \| None, requester_name: str, bot_name: str, group_name: str, group_memory: str, knowledge_context=None) -> str` | system 放规则，user 放 JSON 对话和资料；最近最多 20 条；有知识上下文时解析结构化回答并填入真实引用 | `chat()` → `_retry_with_backoff()` → `_call_chat_api()` → `render_answer()` |
+| `retrieve_knowledge(self, message: str)` | 未开启返回 None，否则检索当前问题；不使用群记忆作为查询资料 | router、Web 沙箱、直接 chat → `KnowledgeRetriever.retrieve()` |
 
-`chat(self, message: str, context_messages: list[dict] | None = None, requester_name: str = "", bot_name: str = "群聊小助手", group_name: str = "群聊", group_memory: str = "") -> str`
-签名保持不变：persona_prompt 为空走原模板，否则调用 `_chat_with_persona`。src/persona/__init__.py 导出 PersonaManager，jason.md 为唯一内置人设；无新增模块常量或第三方运行依赖。
+`chat(self, message: str, context_messages: list[dict] | None = None, requester_name: str = "", bot_name: str = "群聊小助手", group_name: str = "群聊", group_memory: str = "", knowledge_context=None) -> str`
+Phase 4 在末尾增加可选 knowledge_context，保持旧调用兼容。persona_prompt 为空走原模板，否则调用 `_chat_with_persona`。
+未显式提供上下文时，直接 chat 也会按实例开关检索；路由和沙箱显式传入本轮结果，避免重复检索。
+src/persona/__init__.py 导出 PersonaManager，jason.md 为唯一内置人设。
 
 ### 2.5 `src/summarize/claude_backend.py` (ClaudeSummarizer)
 
@@ -749,7 +755,7 @@ Phase 3 本地向量检索（§1 参数、§2 函数、§3 依赖与 §4 数据�
 | 函数签名 | 返回 / 职责 |
 |---|---|
 | `embedding.split_for_model(text, tokenizer, limit=480)` | list[str]；无截断 tokenizer 计数，递归二分，完整保留输入 |
-| `LocalEmbedding.__init__(self, cache_dir, threads=4)` | 保存配置，延迟加载 |
+| `LocalEmbedding.__init__(self, cache_dir, threads=4, local_files_only=False)` | 保存配置，延迟加载；聊天检索设 local_files_only=True，禁止现场下载 |
 | `LocalEmbedding._load(self)` | 首次加载 FastEmbed CPU 模型和独立计数 tokenizer |
 | `LocalEmbedding.embed(self, texts)` | 向量生成器；切窗后按 token 数加权均值、L2 归一化 |
 | `LocalEmbedding.query(self, text)` | 单个向量；添加中文检索指令 |
@@ -786,7 +792,44 @@ ALTER TABLE knowledge_chunks ADD COLUMN embedded_at TEXT;
 新列允许 NULL，原库迁移后等待索引。标题变动按摘要判定过期；正文变动沿用删除旧片段/重建的事务，
 向量随旧行删除。批次失败不写入该批，之前成功的批次保留；检索不混用旧模型或过期向量。
 空问题/无有效向量不调用模型，存储向量损坏显式报错。时间为 UTC。
-检索得分未校准为置信度，Phase 3 未接入 chat；低相关回退与引用注入由 Phase 4 实现。
+检索得分未校准为置信度。Phase 4 聊天接入如下：
+
+| 新增函数/类型 | 返回或用途 |
+|---|---|
+| `KnowledgeContext(status: str, sources: list[dict] = field(default_factory=list))` | 本轮结果；状态为 matched/no_match/unavailable/empty_query/query_too_long |
+| `KnowledgeContext.as_data(self)` | user JSON 的 jason_knowledge 字段 |
+| `KnowledgeRetriever.__init__(self, db_path, cache_dir, min_score=0.5, top_k=3, provider=None)` | CPU 缓存模型、参数校验与线程锁；provider 允许测试注入 |
+| `KnowledgeRetriever.retrieve(self, query)` | read-only SQLite 快照检索，串行模型推理；错误返回 unavailable；每条来源最多 1400 字 |
+| `get_retriever(db_path, cache_dir, min_score=0.5, top_k=3)` | LRU 最多缓存 4 个检索器，供工厂复用模型 |
+| `answer.render_answer(raw, context: KnowledgeContext)` | 校验 answer/source_ids JSON，仅引用本轮来源；来源去重，标记 own/public |
+| `tools/knowledge_chat_smoke.py: main()` | 需 --live 的真实模型验证；可 --case related/unrelated/boundary 定向复验 |
+
+`GROUNDING_PROMPT` 仅包含可信规则；资料、群记忆、用户问题均为 JSON 数据。来源字段包括
+id/title/url/published_at/source/content/score；只接受 http(s) URL 和非空标题。邻近原文从命中偏移前
+最多 200 字开始读取 1400 字，保留列表连续性，整个请求在 SQLite 只读事务内取一致快照。
+每次连接在调用线程创建并关闭，模型加载和推理受同一锁保护。超过 1000 字的问题不做检索，回退通用回答。
+
+```text
+create_summarizer → get_retriever（仅 knowledge_enabled + Jason Persona）
+MessageRouter._handle_chat / Web /api/sandbox/test
+  ├→ summarizer.retrieve_knowledge → KnowledgeRetriever.retrieve
+  │   ├→ read-only knowledge DB → search（阈值 + 去重）
+  │   └→ 读取相邻正文 → KnowledgeContext
+  └→ summarizer.chat(knowledge_context=...) → _chat_with_persona
+      ├→ system: Persona + GROUNDING_PROMPT
+      ├→ user: current_message / group_memory / recent_messages / jason_knowledge
+      ├→ 原后端 _call_chat_api → {answer, source_ids}
+      └→ render_answer → 本地真实标题/URL，或明确标记通用回答
+```
+
+非法 JSON、未知 source id 或模型自己生成引用链接时，丢弃该结果，最多额外执行一次无文章上下文的
+普通 Persona 回答。检索失败不触发下载/重建/写库；没有采用资料时不显示引用。
+普通对话资料会传给已配置聊天 API，禁止将模型自有知识或群消息归为 Jason 文章。
+该规则不证明生成内容永远正确；只有有限离线边界测试和真实模型样本验收。
+总结、群记忆整理和主动发言没有知识库调用；五个受保护目录无功能改动。
+
+`start-jason.cmd` 设置本次子进程 `WEBOT_APP_HOME` 为脚本目录，然后启动 dist/webot.exe；
+不复制数据库/模型、不修改系统环境变量、不启动微信。程序原有的配置引导仍保留。
 
 Jason Persona 增量调用关系（Phase 1）：
 
@@ -1653,6 +1696,8 @@ MacHybridBackend
 ### 5.1 `.env` 文件完整配置项
 
 Jason AI 新增可选项：`PERSONA_NAME=`（默认禁用）或 `PERSONA_NAME=jason`。
+知识库聊天：`KNOWLEDGE_ENABLED=false`、`KNOWLEDGE_MIN_SCORE=0.5`、`KNOWLEDGE_TOP_K=3`。
+开启知识库需 Persona=jason；数字参数在 load_config 中校验范围。Key 可使用现有 DEEPSEEK_API_KEY 环境变量。
 由 src/config.py 加载并由 summarizer 工厂消费；更改后重启 bot，网页无新增编辑控件。
 
 ```ini

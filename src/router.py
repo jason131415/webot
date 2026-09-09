@@ -493,6 +493,9 @@ class MessageRouter:
             )
 
         try:
+            knowledge_args = {}
+            if getattr(self._config, "knowledge_enabled", False):
+                knowledge_args["knowledge_context"] = self._summarizer.retrieve_knowledge(clean_content)
             ai_reply = self._summarizer.chat(
                 message=clean_content,
                 context_messages=context,
@@ -500,6 +503,7 @@ class MessageRouter:
                 bot_name=self._config.bot_display_name,
                 group_name=msg.get("group_name", msg.get("chat_id", "群聊")),
                 group_memory=self._get_group_memory(msg["chat_id"]),
+                **knowledge_args,
             )
             ai_reply = self._nicks.resolve_wxids(ai_reply)
             # Guard against empty AI reply — sending a bare @mention is confusing

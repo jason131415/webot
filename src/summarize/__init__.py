@@ -43,6 +43,14 @@ def create_summarizer(config) -> AbstractSummarizer:
     """
     backend = config.ai_backend.lower()
     persona_prompt = PersonaManager.load(getattr(config, "persona_name", ""))
+    knowledge_retriever = None
+    if getattr(config, "knowledge_enabled", False):
+        if not persona_prompt:
+            raise ValueError("KNOWLEDGE_ENABLED requires PERSONA_NAME=jason")
+        from ..config import PROJECT_ROOT
+        from ..knowledge.context import get_retriever
+        knowledge_retriever = get_retriever(str(PROJECT_ROOT / "data/jason_knowledge.db"),
+            str(PROJECT_ROOT / "data/models"), config.knowledge_min_score, config.knowledge_top_k)
 
     if backend == "deepseek":
         logger.info("Creating DeepSeekSummarizer (model=%s)", config.deepseek_model)
@@ -78,4 +86,5 @@ def create_summarizer(config) -> AbstractSummarizer:
         )
 
     summarizer.persona_prompt = persona_prompt
+    summarizer.knowledge_retriever = knowledge_retriever
     return summarizer

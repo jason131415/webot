@@ -4,7 +4,7 @@
 
 - 仓库：`jason131415/webot`；开发分支：`feature/jason-ai-v1`。
 - 基线提交：`19b82a2f941eeebcaed37e386c34c96bba69a23d`。
-- 本次交付 Phase 0 基线检查及 Phase 1 Jason Persona，每阶段测试、检查 diff、独立 commit 并汇报。后续 Phase 2–8 仅规划。
+- 初始交付为 Phase 0 基线检查及 Phase 1 Jason Persona；用户逐阶段授权后，当前已推进至 Phase 4。每阶段测试、检查 diff、独立 commit 并汇报；Phase 5–8 仍为规划。
 - 已核实 GitHub CLI 登录及 push 权限，并成功创建远端开发分支。
 - 依据当前源码、README、CLAUDE.md 和 CODEBASE_REFERENCE.md；早期对话中的方案不是现有功能的证明。
 
@@ -139,3 +139,18 @@ Phase 1：验证空配置兼容、人设加载/非法输入/资源故障、三�
 - 验证：知识库定向测试 32 passed；全量 452 项，441 passed / 11 failed / 0 skipped，失败集合与 Phase 1 基线一致，无新增失败。前端及 Windows EXE 已构建，EXE 约 74.3 MiB，已核对新增模块、ONNX 运行依赖与前端/Persona 资源；未启动 EXE 或真实微信，macOS 仅同步打包清单。哈希见阶段结果文件。
 - 受保护目录与桌面入口无改动。没有连接真实微信、发送消息或上传文章；未接入聊天、网页知识库界面、群记忆或主动发言。
 - 复现：`python tools/knowledge_benchmark.py`。本地详细报告 `outputs/phase3-benchmark.json` 含真实标题/链接，因此忽略提交；公开汇总为 `JASON_AI_PHASE3_RESULTS.json`。
+
+## Phase 4：知识库问答与来源引用（2026-09-10）
+
+- 普通聊天、MessageRouter._handle_chat 和 Web 提示词沙箱已接入相同的检索链路，支持显式 knowledge_context；旧调用签名保持兼容。
+- KNOWLEDGE_ENABLED 默认 false，须与 PERSONA_NAME=jason 同时开启。本地项目 `.env` 已配置为 DeepSeek + Jason + 知识库；Key 仍使用已有环境变量，没有写入文件。
+- 当前问题单独检索，默认 min_score=0.5 / top_k=3；每篇从命中位置前最多 200 字开始读取 1400 字，避免只取索引片段导致列表断在中途。读库为只读快照，模型缓存复用并串行推理。
+- Persona/引用规则为 system 指令；问题、群记忆、最近对话和文章均为 user JSON 数据。own 来源才可归为 Jason 文章，public 等标记为外部资料。
+- 模型只返回 answer/source_ids，应用检查来源白名单后填入真实标题和 URL。低相关/无库/损坏/缓存缺失/资料未采用时明确回退通用回答；模型格式或引用不合法时丢弃该结果，最多额外请求一次无文章上下文的通用回答。
+- 问答过程中不下载模型、不建索引、不写文章库。命中的文章片段会发给配置的聊天 API；本轮已按用户授权调用 DeepSeek 验证。
+- 真实 DeepSeek-V4-Flash 共 4 次请求：相关文章带正确引用、无关问题通用回退、身份改写和虚假链接请求被拒绝；发现流程段落不完整后补邻近正文并复验，回答已覆盖三步流程。真实输出保存在本地 outputs/phase4-live*.json，不提交个人文章明细。
+- 测试：新增 32 项知识库问答测试通过；最终全量 484 项，473 passed / 11 failed / 0 skipped。11 个失败与 Phase 3 基线集合一致，无新增失败。浏览器沙箱验证走真实本地 HTTP/前端/检索器，仅 SDK 网络替换为假响应。
+- Windows EXE 已构建并核对新增模块、前端/Persona/.env.example 资源字节；没有打包真实 .env、文章库或模型权重。macOS 仅更新清单，未构建；未启动桌面 EXE 或真实微信。
+- 新增 start-jason.cmd 将 WEBOT_APP_HOME 指向当前目录，避免 EXE 从 dist/data 读取空文章库；不改变系统环境变量，未自动运行该入口。
+- 五个受保护目录及 desktop.py/desktop_mac.py 无改动。阶段汇总 JASON_AI_PHASE4_RESULTS.json，详细说明 outputs/Phase4验收结果.md。
+- 限制：少量真实样本不证明模型始终正确；阈值不是校准置信度，文章事实未自动核查；仅按当前问题检索，未做多轮问题改写。网页知识库管理仍属 Phase 5。

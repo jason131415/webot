@@ -1,0 +1,59 @@
+{
+  "phase": 4,
+  "total": 484,
+  "passed": 473,
+  "failed": [
+    "tests.test_config.ValidateConfigTests::test_max_retries_above_maximum_raises",
+    "tests.test_config.ValidateConfigTests::test_max_retries_below_minimum_raises",
+    "tests.test_functional.TestSidebarNavigation::test_sidebar_has_tabs",
+    "tests.test_macos_adaptation.MacOSAdaptationTests::test_find_env_file_honors_explicit_env_file_override",
+    "tests.test_macos_adaptation.MacOSAdaptationTests::test_readme_documents_macos_experimental_start",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_build_lldb_env_prepends_lldb_python_path",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_build_lldb_extract_command_uses_sudo_env_and_never_embeds_key_material",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_chatlog_build_command_targets_cmd_chatlog",
+    "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_count_open_db_files_counts_db_storage_handles",
+    "tests.test_web_api.ApiConfigEndpointTests::test_load_config_reads_feishu_export_values",
+    "tests.test_web_api.TestConfig::test_validate_config_max_retries_out_of_range"
+  ],
+  "skipped": 0,
+  "new_failures": [],
+  "new_knowledge_chat_tests_passed": 32,
+  "browser_sandbox_passed": true,
+  "live_model": "deepseek-v4-flash",
+  "live_requests": 4,
+  "live_checks": {
+    "grounded_answer_with_real_source": true,
+    "unrelated_general_fallback": true,
+    "identity_and_fake_citation_rejected": true,
+    "neighboring_excerpt_improved_procedure_coverage": true
+  },
+  "local_config_enabled": true,
+  "api_key_kept_in_environment": true,
+  "wechat_sent": false,
+  "protected_directories_changed": false,
+  "build": {
+    "exe": "dist/webot.exe",
+    "size_mib": 74.3,
+    "sha256": "3d72a0e920fe69470839ebced35fd55a66fddb1e520f917fb93ee09546053af7",
+    "archive_modules_verified": [
+      "src.knowledge.context",
+      "src.knowledge.answer",
+      "src.knowledge.embedding",
+      "src.knowledge.retrieval",
+      "src.summarize.base",
+      "src.router",
+      "src.web.server",
+      "fastembed",
+      "onnxruntime"
+    ],
+    "personal_data_and_keys_bundled": false,
+    "desktop_runtime_launched": false,
+    "macos_built": false
+  },
+  "limitations": [
+    "Small live sample, not a guarantee of groundedness",
+    "Similarity threshold is not calibrated confidence",
+    "Desktop EXE and real WeChat were not launched",
+    "Web knowledge management belongs to Phase 5"
+  ]
+}

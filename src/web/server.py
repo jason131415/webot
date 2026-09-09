@@ -1851,6 +1851,9 @@ class _UIHandler(SimpleHTTPRequestHandler):
                 summarizer = create_summarizer(config)
 
                 # Call chat
+                knowledge_args = {}
+                if config.knowledge_enabled:
+                    knowledge_args["knowledge_context"] = summarizer.retrieve_knowledge(message)
                 reply = summarizer.chat(
                     message=message,
                     context_messages=context_messages,
@@ -1858,6 +1861,7 @@ class _UIHandler(SimpleHTTPRequestHandler):
                     bot_name=config.bot_display_name or "群聊小助手",
                     group_name=group_name,
                     group_memory=group_memory,
+                    **knowledge_args,
                 )
 
                 self.send_json({

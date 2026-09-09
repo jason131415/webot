@@ -19,9 +19,10 @@ class LocalEmbedding:
     model_id = "BAAI/bge-small-zh-v1.5:fastembed0.8:char-bisect480:weighted-mean-v1:query-zh"
     dimension = 512
 
-    def __init__(self, cache_dir, threads=4):
+    def __init__(self, cache_dir, threads=4, local_files_only=False):
         self.cache_dir = str(cache_dir)
         self.threads = threads
+        self.local_files_only = local_files_only
         self._model = None
         self._tokenizer = None
 
@@ -30,7 +31,8 @@ class LocalEmbedding:
             from fastembed import TextEmbedding
             from tokenizers import Tokenizer
             self._model = TextEmbedding(model_name=self.model_name, cache_dir=self.cache_dir,
-                                        threads=self.threads, providers=["CPUExecutionProvider"])
+                                        threads=self.threads, providers=["CPUExecutionProvider"],
+                                        local_files_only=self.local_files_only)
             self._tokenizer = Tokenizer.from_str(self._model.model.tokenizer.to_str())
             self._tokenizer.no_truncation()
             self._tokenizer.no_padding()

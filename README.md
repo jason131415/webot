@@ -205,11 +205,42 @@ python -m src.knowledge.vector_cli search "如何让 AI 自动完成任务？" -
 检索按余弦相似度排序，同一文章仅保留最匹配片段，同时返回真实标题、URL、日期和来源。
 
 `--min-score` 可过滤候选，但分数不是正确率；默认返回候选，不保证问题一定有答案。
-当前仅提供命令行检索，**尚未将检索结果接入聊天或 DeepSeek 回答**，该部分属于 Phase 4。
+Phase 3 提供命令行检索；聊天接入方式见下方 Phase 4。
 17 篇无正文文章保留元数据，不参与向量检索。模型、数据库、备份与真实检索报告均留在本地。
 
 开发打包前也需安装 `requirements-knowledge.txt`。EXE 包含向量运行依赖和代码，
 不内置模型权重或个人文章库；本阶段命令行通过 Python 运行。
+
+### 知识库聊天（Phase 4）
+
+完成文章索引后，在项目 `.env` 中启用并重启应用：
+
+```dotenv
+AI_BACKEND=deepseek
+PERSONA_NAME=jason
+KNOWLEDGE_ENABLED=true
+KNOWLEDGE_MIN_SCORE=0.5
+KNOWLEDGE_TOP_K=3
+```
+
+`DEEPSEEK_API_KEY` 可继续使用已有环境变量，无需写入文件。知识库开关默认关闭；
+设为 `false` 可回到仅 Persona 聊天，不删除文章和向量。关闭 Persona 前也应关闭知识库开关。
+
+群聊 @问答与「系统配置 → 提示词沙箱」共用同一检索链路。检索只看当前问题，
+最多 3 篇候选（配置上限 5）、每篇最多 1,400 字；所有资料是 user 数据，不进入 system 指令。
+群记忆不能作为 Jason 文章来源，外部资料也不会标为 Jason 文章。
+命中内容会发送给所配置的聊天 API 生成回答；本地检索不需要 Embedding API。
+
+回答采用资料时附真实标题和原文 URL，链接由程序从文章记录填入。
+低相关、无可用索引、模型缓存缺失或资料不足时回退通用回答，明确没有采用 Jason 文章。
+格式错误或非法引用最多额外调用一次通用回答，不展示编造的引用。
+聊天只读文章库，使用本地模型缓存，**不会在问答过程中下载模型或重建索引**。
+相关度门槛是可调整的经验值，不是事实正确率；文章本身的观点和新闻信息也未经过自动事实核查。
+
+Windows 本地项目双击 `start-jason.cmd` 可启动已构建的 EXE，并通过 `WEBOT_APP_HOME`
+指向当前项目的 `.env`、文章库和模型缓存。直接双击 `dist/webot.exe` 默认读取 dist 下的数据，
+因此在当前开发目录建议使用这个启动入口。源码运行也可用 `python desktop.py`。
+当前阶段未新增网页知识库管理界面，也未实测真实微信群收发。
 
 原有常用设置可以在控制台里直接修改。保存后重启机器人即可生效。
 
@@ -220,7 +251,7 @@ python -m src.knowledge.vector_cli search "如何让 AI 自动完成任务？" -
 人设文本位于 `src/persona/jason.md`；源码运行时修改后需重启，EXE 版本修改资源需重新打包。
 
 Jason AI 是 Jason 的 AI 助手而非本人，面向技术项目管理、解决方案和 AI 实践问题。
-本阶段尚未接入公众号知识库，不会获得 Jason 的历史文章或个人观点。
+仅开启 Persona 不会读取文章；同时开启 `KNOWLEDGE_ENABLED` 后才会检索本地文章。
 该人设作用于普通 @ 对话（含原有 sticky mention 后续对话）和已有提示词沙箱，
 不改变总结、群记忆整理或主动发言。Claude、DeepSeek、OpenAI 兼容后端均通过同一入口启用。
 

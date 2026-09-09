@@ -171,6 +171,10 @@ class BotConfig:
     bot_display_name: str = "群聊小助手"
     # Empty keeps legacy chat behavior; "jason" enables Jason AI for chat only.
     persona_name: str = ""
+    # Opt-in local article retrieval for Jason conversational chat only.
+    knowledge_enabled: bool = False
+    knowledge_min_score: float = 0.5
+    knowledge_top_k: int = 3
     # Admin wxid (can manage nicknames and bot settings)
     admin_wxid: str = ""
 
@@ -304,6 +308,11 @@ def _safe_int(raw: str, default: int, label: str) -> int:
 def _validate_config(kwargs: dict) -> None:
     """Validate numeric config values.  Prints clear errors and exits on bad values."""
     errors: list[str] = []
+
+    if not 0 <= kwargs.get("knowledge_min_score", 0.5) <= 1:
+        errors.append("KNOWLEDGE_MIN_SCORE must be between 0 and 1")
+    if not 1 <= kwargs.get("knowledge_top_k", 3) <= 5:
+        errors.append("KNOWLEDGE_TOP_K must be between 1 and 5")
 
     # poll_interval_sec
     poll_interval_sec = kwargs.get("poll_interval_sec", 1.0)
@@ -482,6 +491,9 @@ def load_config() -> BotConfig:
         "wechat_data_dir": os.getenv("WECHAT_DATA_DIR", "").strip(),
         "bot_display_name": _sanitize_display_name(os.getenv("BOT_DISPLAY_NAME", "群聊小助手")),
         "persona_name": os.getenv("PERSONA_NAME", "").strip().lower(),
+        "knowledge_enabled": os.getenv("KNOWLEDGE_ENABLED", "false").strip().lower() == "true",
+        "knowledge_min_score": _safe_float(os.getenv("KNOWLEDGE_MIN_SCORE", "0.5"), 0.5, "KNOWLEDGE_MIN_SCORE"),
+        "knowledge_top_k": _safe_int(os.getenv("KNOWLEDGE_TOP_K", "3"), 3, "KNOWLEDGE_TOP_K"),
         "admin_wxid": os.getenv("ADMIN_WXID", "").strip(),
         "db_path": os.getenv("DB_PATH", "data/messages.db").strip(),
         "poll_interval_sec": _safe_float(os.getenv("POLL_INTERVAL_SEC", "1.0"), 1.0, "POLL_INTERVAL_SEC"),
