@@ -1,0 +1,53 @@
+{
+  "base_commit": "19b82a2f941eeebcaed37e386c34c96bba69a23d",
+  "python": "3.14.3",
+  "total": 394,
+  "passed": 383,
+  "failed": [
+    {
+      "test": "tests.test_config.ValidateConfigTests::test_max_retries_above_maximum_raises",
+      "reason": "AssertionError: RuntimeError not raised"
+    },
+    {
+      "test": "tests.test_config.ValidateConfigTests::test_max_retries_below_minimum_raises",
+      "reason": "AssertionError: RuntimeError not raised"
+    },
+    {
+      "test": "tests.test_functional.TestSidebarNavigation::test_sidebar_has_tabs",
+      "reason": "AssertionError: assert '运行状态' in '正在加载...'"
+    },
+    {
+      "test": "tests.test_macos_adaptation.MacOSAdaptationTests::test_find_env_file_honors_explicit_env_file_override",
+      "reason": "AssertionError: WindowsPath('C:/Users/Matebook 14/AppData/Local/Temp/tmp1r3ojc02/.env.macos') != WindowsPath('C:/Users/MATEBO~1/AppData/Local/Temp/tmp1r3ojc02/.env.macos')"
+    },
+    {
+      "test": "tests.test_macos_adaptation.MacOSAdaptationTests::test_readme_documents_macos_experimental_start",
+      "reason": "AssertionError: 'WECHAT_BACKEND=mac_ui' not found in '# webot\\n\\n> 微信群的 AI 助手 —— 帮你总结聊天、管理待办、回答问题，像多了一个会做笔记的群友。\\n\\n<p align=\"center\">\\n  <img src=\"https://img.shields.io/badge/platform-Windows%2010%2F11%20%7C%20macOS-blue?style=flat-square&logo=windows\" alt=\"Platform\" />\\n  <img src=\"https://img.shields.io/badge/python-3.13%2B-green?style=flat-squa"
+    },
+    {
+      "test": "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_build_lldb_env_prepends_lldb_python_path",
+      "reason": "AssertionError: '/Applications/Xcode.app/LLDB/Python;/existing' != '/Applications/Xcode.app/LLDB/Python:/existing'\n- /Applications/Xcode.app/LLDB/Python;/existing\n?                                    ^\n+ /Applications/Xcode.app/LLDB/Python:/existing\n?                                    ^"
+    },
+    {
+      "test": "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_build_lldb_extract_command_uses_sudo_env_and_never_embeds_key_material",
+      "reason": "AssertionError: '/tmp/macos_lldb_keyscan.py' not found in ['sudo', 'env', 'PYTHONPATH=/Applications/Xcode.app/LLDB/Python', '/usr/bin/python3', '\\\\tmp\\\\macos_lldb_keyscan.py', '--pid', '123', '--data-dir', '/Users/me/xwechat_files/wxid_abc']"
+    },
+    {
+      "test": "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_chatlog_build_command_targets_cmd_chatlog",
+      "reason": "AssertionError: Lists differ: ['go', 'build', '-o', '\\\\tmp\\\\chatlog-alpha', './cmd/chatlog_server'] != ['go', 'build', '-o', '/tmp/chatlog-alpha', './cmd/chatlog_server']\n\nFirst differing element 3:\n'\\\\tmp\\\\chatlog-alpha'\n'/tmp/chatlog-alpha'\n\n- ['go', 'build', '-o', '\\\\tmp\\\\chatlog-alpha', './cmd/chatlog_server']\n?                        ^^   ^^\n\n"
+    },
+    {
+      "test": "tests.test_macos_chatlog_setup.MacOSChatlogSetupTests::test_count_open_db_files_counts_db_storage_handles",
+      "reason": "AssertionError: 0 != 3"
+    },
+    {
+      "test": "tests.test_web_api.TestConfig::test_validate_config_max_retries_out_of_range",
+      "reason": "AssertionError: RuntimeError not raised"
+    },
+    {
+      "test": "tests.test_web_api.ApiConfigEndpointTests::test_load_config_reads_feishu_export_values",
+      "reason": "AssertionError: 'secr***test' != 'secret_test'\n- secr***test\n?     ^^^\n+ secret_test\n?     ^^^"
+    }
+  ],
+  "skipped": 0
+}
