@@ -288,12 +288,14 @@ todo_delete_keywords: list[str] = [
 | `PersonaManager.load(name: str = "") -> str` | 空名称返回空字符串；仅支持 jason；包内 UTF-8 资源缺失、不可读或空白时抛 RuntimeError，非法名称抛 ValueError | `create_summarizer()` → `Path(__file__).resolve().with_name("jason.md").read_text()` |
 | `create_summarizer(config) -> AbstractSummarizer` | 读取 persona_name，按 knowledge_enabled 获取缓存检索器，再创建原有后端并设置实例 persona_prompt/knowledge_retriever；默认禁用；启用知识库要求 Jason Persona | Bot.run、Web 沙箱 → PersonaManager.load、get_retriever、三个后端构造函数 |
 | `AbstractSummarizer.persona_prompt: str = ""` | 工厂设置的实例属性，仅普通 chat 使用 | `create_summarizer()` → `chat()` |
-| `_chat_with_persona(self, message: str, context_messages: list[dict] \| None, requester_name: str, bot_name: str, group_name: str, group_memory: str, knowledge_context=None) -> str` | system 放规则，user 放 JSON 对话和资料；最近最多 20 条；有知识上下文时解析结构化回答并填入真实引用 | `chat()` → `_retry_with_backoff()` → `_call_chat_api()` → `render_answer()` |
+| `_chat_with_persona(self, message: str, context_messages: list[dict] \| None, requester_name: str, bot_name: str, group_name: str, group_memory: str, knowledge_context=None) -> str` | system 放规则，user 放 JSON 对话和资料；最近最多 20 条；**仅当 `knowledge_context.sources` 非空**时才注入 jason_knowledge、追加 GROUNDING_PROMPT 并走 `render_answer`；无候选时按普通聊天返回原文本，不加回退前缀 | `chat()` → `_retry_with_backoff()` → `_call_chat_api()` → `render_answer()`（仅有候选时） |
 | `retrieve_knowledge(self, message: str)` | 未开启返回 None，否则检索当前问题；不使用群记忆作为查询资料 | router、Web 沙箱、直接 chat → `KnowledgeRetriever.retrieve()` |
 
 `chat(self, message: str, context_messages: list[dict] | None = None, requester_name: str = "", bot_name: str = "群聊小助手", group_name: str = "群聊", group_memory: str = "", knowledge_context=None) -> str`
 Phase 4 在末尾增加可选 knowledge_context，保持旧调用兼容。persona_prompt 为空走原模板，否则调用 `_chat_with_persona`。
 未显式提供上下文时，直接 chat 也会按实例开关检索；路由和沙箱显式传入本轮结果，避免重复检索。
+回退前缀只在**确实提供了候选资料**而模型未采用时出现；`KnowledgeContext.status == "no_match"`（sources 为空）等价于普通聊天，
+不注入 jason_knowledge、不要求结构化输出、不加"未采用 Jason 文章资料"前缀，避免无关问题出现多余免责声明。
 src/persona/__init__.py 导出 PersonaManager，jason.md 为唯一内置人设。
 
 ### 2.5 `src/summarize/claude_backend.py` (ClaudeSummarizer)

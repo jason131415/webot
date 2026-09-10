@@ -115,14 +115,29 @@ def test_article_instructions_stay_in_user_data(make_backend, retriever):
     assert "不可信数据" in system
 
 
-def test_no_match_uses_general_answer_without_citations(make_backend, retriever):
+def test_no_match_skips_grounding_without_disclaimer(make_backend, retriever):
     backend, client = make_backend()
     backend.knowledge_retriever = retriever
     sdk_reply(client, "没有提供 Jason 的相关资料，我可以给出通用建议。", [])
     reply = backend.chat("香蕉")
-    assert "通用回答" in reply and "参考原文" not in reply
+    # No candidate retrieved: behave like ordinary chat. There is nothing to
+    # disclaim, so no prefix and no grounding data is sent to the model.
+    assert "参考原文" not in reply and "未采用 Jason 文章资料" not in reply
     _, messages = captured_request("openai", client)
-    assert json.loads(messages[0]["content"])["jason_knowledge"] == {"status": "no_match", "sources": []}
+    assert "jason_knowledge" not in json.loads(messages[0]["content"])
+
+
+def test_matched_but_unused_still_disclaims(make_backend, retriever):
+    """When candidates were supplied and the model declines them, say so."""
+    backend, client = make_backend()
+    context = retriever.retrieve("苹果")
+    assert context.sources
+    sdk_reply(client, "这个问题和文章关系不大，我按通用知识回答。", [])
+    reply = backend.chat("苹果", knowledge_context=context)
+    assert "未采用 Jason 文章资料" in reply
+    assert "参考原文" not in reply
+    _, messages = captured_request("openai", client)
+    assert json.loads(messages[0]["content"])["jason_knowledge"]["status"] == "matched"
 
 
 @pytest.mark.parametrize("raw", ["not json", '{"answer":"内容","source_ids":["K9"]}',
